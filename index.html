@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PowerVitals — Live Battery &amp; Power Dashboard</title>
+<meta name="description" content="PowerVitals shows your battery level, charge state and power timing live, right in your browser. Free, no sign-in." />
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#141b30;
+    --panel-2:#1b2440;
+    --line:#28324f;
+    --txt:#eef2ff;
+    --muted:#9aa6c4;
+    --accent:#35e0a1;
+    --accent-2:#4f9dff;
+    --warn:#ffb020;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 70% -10%, #17233f 0%, var(--bg) 55%) fixed;
+    color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-2)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  header.nav{
+    position:sticky;top:0;z-index:20;
+    backdrop-filter:blur(10px);
+    background:rgba(11,16,32,.72);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+  .bolt{
+    width:30px;height:30px;border-radius:9px;
+    display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--accent),var(--accent-2));
+    color:#06131a;font-weight:900;font-size:16px;
+  }
+  .btn{
+    display:inline-block;border:0;cursor:pointer;
+    padding:11px 18px;border-radius:999px;font-weight:600;font-size:15px;
+    text-decoration:none;color:#06131a;
+    background:linear-gradient(140deg,var(--accent),#2bd3ff);
+    transition:transform .08s ease,filter .15s ease;
+  }
+  .btn:hover{filter:brightness(1.07)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  .hero{padding:64px 0 28px;text-align:center}
+  .hero h1{font-size:clamp(30px,5vw,50px);margin:0 0 12px;letter-spacing:-.5px}
+  .hero p{color:var(--muted);font-size:18px;max-width:620px;margin:0 auto 26px}
+  .hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .pill{display:inline-block;font-size:12.5px;color:var(--muted);border:1px solid var(--line);
+        padding:5px 12px;border-radius:999px;margin-bottom:18px;background:var(--panel)}
+  section{padding:26px 0}
+  h2{font-size:24px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;
+  }
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.g3,.g2{grid-template-columns:1fr}}
+
+  /* Battery dashboard */
+  .dash{display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:center}
+  @media(max-width:640px){.dash{grid-template-columns:1fr}}
+  .gauge{display:grid;place-items:center;position:relative}
+  .gauge svg{transform:rotate(-90deg)}
+  .gauge .num{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-size:34px;font-weight:800;letter-spacing:-1px;
+  }
+  .gauge .num small{font-size:15px;font-weight:600;color:var(--muted);margin-left:2px}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:480px){.metrics{grid-template-columns:1fr}}
+  .metric{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .metric .k{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .metric .v{font-size:19px;font-weight:700;margin-top:3px}
+  .statusline{margin-top:16px;font-size:14px;color:var(--muted)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600}
+  .badge.ok{background:rgba(53,224,161,.15);color:var(--accent)}
+  .badge.warn{background:rgba(255,176,32,.15);color:var(--warn)}
+
+  .feat .ico{font-size:22px}
+  .feat h3{margin:8px 0 4px;font-size:16px}
+  .feat p{margin:0;color:var(--muted);font-size:14.5px}
+
+  /* Ad slots */
+  .ad{
+    margin:22px 0;border:1px dashed var(--line);border-radius:var(--radius);
+    background:rgba(255,255,255,.02);
+    min-height:90px;display:grid;place-items:center;text-align:center;
+    color:var(--muted);font-size:13px;padding:18px;
+  }
+  .ad .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.7}
+
+  .dl{display:flex;gap:22px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .dl .meta{color:var(--muted);font-size:14px}
+
+  footer{border-top:1px solid var(--line);margin-top:30px;padding:26px 0 60px;color:var(--muted);font-size:13.5px}
+  footer .row{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .note{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <div class="brand"><span class="bolt">⚡</span> PowerVitals</div>
+    <a class="btn" href="#download">Get the app</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <span class="pill">Free · No sign-in · No licence code</span>
+    <h1>Know your battery. Live.</h1>
+    <p>PowerVitals shows your charge level, charging state and power timing in real time — right here in your browser, or on your phone.</p>
+    <div class="cta">
+      <a class="btn" href="#dashboard">Open live dashboard</a>
+      <a class="btn ghost" href="#download">Download for Android</a>
+    </div>
+  </section>
+
+  <section id="dashboard">
+    <h2>Live battery dashboard</h2>
+    <p class="sub">Reads straight from your device. Everything runs locally — nothing is uploaded.</p>
+    <div class="card">
+      <div class="dash">
+        <div class="gauge">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="76" fill="none" stroke="#243052" stroke-width="16"/>
+            <circle id="ring" cx="90" cy="90" r="76" fill="none" stroke="url(#g)" stroke-width="16"
+                    stroke-linecap="round" stroke-dasharray="477" stroke-dashoffset="477"/>
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#35e0a1"/>
+                <stop offset="100%" stop-color="#4f9dff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="num"><span id="lvl">--</span><small>%</small></div>
+        </div>
+        <div>
+          <div class="metrics">
+            <div class="metric"><div class="k">Charging</div><div class="v" id="charging">--</div></div>
+            <div class="metric"><div class="k">Time to full</div><div class="v" id="tofull">--</div></div>
+            <div class="metric"><div class="k">Time to empty</div><div class="v" id="toempty">--</div></div>
+            <div class="metric"><div class="k">Power source</div><div class="v" id="plug">--</div></div>
+          </div>
+          <div class="statusline" id="status">Reading your battery…</div>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:12px">
+      Note: browsers only expose level, charge state and timing. Deep readings like voltage, current,
+      temperature and cell-health live in the Android app (see below).
+    </p>
+  </section>
+
+  <!-- AD SLOT 1 — paste your ad code inside this div -->
+  <div class="ad" id="ad-top">
+    <div><div class="lbl">Advertisement</div>Ad slot — drop your Google AdSense snippet here.</div>
+  </div>
+
+  <section>
+    <h2>What PowerVitals does</h2>
+    <p class="sub">The full Android app reads far more than a browser can.</p>
+    <div class="grid g3">
+      <div class="card feat"><div class="ico">🔋</div><h3>Live charge &amp; power</h3><p>Voltage, current and wattage in real time as your phone charges or drains.</p></div>
+      <div class="card feat"><div class="ico">❤️</div><h3>Battery health</h3><p>Estimated capacity vs. design capacity, with a simple health rating.</p></div>
+      <div class="card feat"><div class="ico">📉</div><h3>Charge calibration</h3><p>Measure your battery's real capacity over a full charge cycle.</p></div>
+      <div class="card feat"><div class="ico">⚡</div><h3>Power draw monitor</h3><p>See how much power your device is consuming and where it goes.</p></div>
+      <div class="card feat"><div class="ico">🎛️</div><h3>Quick toggles</h3><p>Wi-Fi, Bluetooth, sync, GPS and brightness controls in one place.</p></div>
+      <div class="card feat"><div class="ico">🌡️</div><h3>Temperature &amp; cycles</h3><p>Battery temperature and charge-cycle count at a glance.</p></div>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2>Get PowerVitals for Android</h2>
+    <p class="sub">Free. No pricing, no unlock code, no sign-in.</p>
+    <div class="card dl">
+      <div>
+        <div style="font-weight:700;font-size:18px">PowerVitals for Android</div>
+        <div class="meta" id="apkmeta">APK · Android 7.0+ · ~170 KB</div>
+      </div>
+      <!-- Point this href at your hosted APK file (e.g. /PowerVitals.apk placed next to index.html) -->
+      <a class="btn" href="PowerVitals.apk" download>Download APK</a>
+    </div>
+  </section>
+
+  <!-- AD SLOT 2 -->
+  <div class="ad" id="ad-bottom">
+    <div><div class="lbl">Advertisement</div>Ad slot — drop your second ad unit here.</div>
+  </div>
+
+  <footer>
+    <div class="row">
+      <div>© <span id="yr"></span> PowerVitals</div>
+      <div>Runs entirely in your browser · No data collected</div>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+(function(){
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  var ring = document.getElementById('ring');
+  var C = 2 * Math.PI * 76; // circumference
+  ring.setAttribute('stroke-dasharray', C.toFixed(1));
+
+  function setLevel(pct){
+    document.getElementById('lvl').textContent = Math.round(pct);
+    var off = C * (1 - Math.min(Math.max(pct,0),100)/100);
+    ring.setAttribute('stroke-dashoffset', off.toFixed(1));
+  }
+  function fmt(sec){
+    if (sec === Infinity || sec === 0 || sec == null || !isFinite(sec)) return '--';
+    sec = Math.round(sec);
+    var h = Math.floor(sec/3600), m = Math.round((sec%3600)/60);
+    return h > 0 ? (h + 'h ' + m + 'm') : (m + ' min');
+  }
+
+  var status = document.getElementById('status');
+
+  if (navigator.getBattery){
+    navigator.getBattery().then(function(b){
+      function render(){
+        setLevel(b.level*100);
+        document.getElementById('charging').textContent = b.charging ? 'Yes' : 'No';
+        document.getElementById('tofull').textContent = b.charging ? fmt(b.chargingTime) : '—';
+        document.getElementById('toempty').textContent = (!b.charging) ? fmt(b.dischargingTime) : '—';
+        document.getElementById('plug').textContent = b.charging ? 'Plugged in' : 'Battery';
+        status.innerHTML = b.charging
+          ? '<span class="badge ok">Charging</span> &nbsp; Your device is plugged in.'
+          : '<span class="badge warn">On battery</span> &nbsp; Running on battery power.';
+      }
+      render();
+      ['levelchange','chargingchange','chargingtimechange','dischargingtimechange']
+        .forEach(function(e){ b.addEventListener(e, render); });
+    }).catch(function(){
+      status.textContent = 'Could not read the battery on this device/browser.';
+    });
+  } else {
+    status.textContent = 'This browser does not expose battery info (try Chrome on Android).';
+  }
+})();
+</script>
+</body>
+</html>
