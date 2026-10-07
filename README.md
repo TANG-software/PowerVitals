@@ -1,60 +1,69 @@
-# PowerVitals — web version
+# PowerVitals — web preview
 
-A free, licence-free web version of the PowerVitals battery dashboard, with ad
-slots ready to fill. No pricing page, no unlock code, no sign-in.
+A free, licence-free **web version** of the PowerVitals screen. It mirrors the
+Android app's layout (dark "diagnostic unit" theme, orange accents, monospace)
+so it can be loaded inside a WebView app, with ad slots ready to fill.
 
 ## Files
 
-- `index.html` — the whole site (HTML + CSS + JS in one file). Self-contained.
+- `index.html` — the whole site (HTML + CSS + JS in one file). Self-contained,
+  mobile-first, works offline.
 - `README.md` — this file.
 
-## What it does
+## What it shows
 
-- **Live battery dashboard** — reads level, charging state and charge/discharge
-  timing straight from the browser (Chrome on Android gives the most detail).
-- **Feature overview** — describes what the full Android app adds.
-- **Download section** — a button to hand out the Android app.
-- **Two ad slots** — marked in `index.html` as `#ad-top` and `#ad-bottom`.
+The page copies the app's sections one-for-one:
 
-Everything runs locally in the visitor's browser. Nothing is uploaded anywhere.
+Battery Health · Calibration · Health Snapshot · Charging Dashboard ·
+Power Flow Analysis · Live Monitor · Power Consumption · Battery Optimizer ·
+Advanced Data · Raw Sysfs Data
+
+**Live in the browser:** battery level, charging state, time-to-full, and an
+estimated charge rate (%/hr).
+
+**Shown as placeholders (—):** voltage, current, temperature, capacity,
+calibration, cycle count, sysfs. Browsers cannot read these — they are Android
+APIs only. That is a platform limit, not a bug.
+
+## Get-app button
+
+The sticky bar at the bottom has a **Get App** button pointing at
+`PowerVitals.apk`. Change the `href` on the `<a id="getApp" ...>` element to
+whatever download link you want (your hosted APK, a Play Store URL, etc.).
 
 ## Add your ads
 
-Open `index.html` and find the two `<div class="ad" ...>` blocks. Delete the
-placeholder text inside and paste your ad network's snippet (e.g. a Google
-AdSense `<ins class="adsbygoogle">` block) where indicated.
+Find the two `<div class="ad" ...>` blocks (`#ad-1` and `#ad-2`). Delete the
+placeholder text and paste your ad network's snippet where indicated.
 
-## Put the Android APK next to the page (optional)
+Note: many ad networks (including Google AdSense) restrict ads inside app
+WebViews. Check your network's policy before relying on in-app web ads.
 
-The download button points at `PowerVitals.apk`. To make it work, drop your APK
-file into this same folder and name it `PowerVitals.apk`. It will then be
-served as a normal download.
+## Using it inside the new APK (WebView)
 
-## Deploy — Vercel (recommended)
+If the new APK is a WebView wrapper, point it at this page:
 
-1. Put `index.html` (and `PowerVitals.apk`, if you have it) in a folder.
-2. Go to https://vercel.com and sign in (GitHub/email).
-3. Click **Add New → Project → Deploy** and either:
-   - drag the folder onto the Vercel dashboard, or
-   - push it to a GitHub repo and import that repo.
-4. Framework preset: **Other**. Build command: leave empty. Output dir: leave empty.
-5. Deploy. You get a live `https://<name>.vercel.app` URL, and you can attach a
-   custom domain later.
+```java
+webView.getSettings().setJavaScriptEnabled(true);   // needed for the live battery JS
+webView.loadUrl("file:///android_asset/index.html"); // if bundled in the APK assets
+// or loadUrl("https://your-site.vercel.app") if hosted
+```
 
-No build step is needed — it's plain static HTML.
+Bundling `index.html` into the APK's `assets/` folder makes the app work fully
+offline. The browser Battery API only returns real values on Chrome-based
+WebViews.
 
-## Deploy — alternatives
+## Deploy — Vercel (or Netlify / GitHub Pages)
 
-- **Netlify** — same idea: drag the folder onto https://app.netlify.com/drop.
-- **GitHub Pages** — push the folder to a repo, then Settings → Pages → deploy
-  from the branch root.
-- **Cloudflare Pages** — connect the repo, no build command.
+Plain static HTML, no build step:
 
-Any of these works. Vercel or Netlify are the quickest.
+1. **Vercel** — vercel.com → Add New → Project → import this repo → Framework
+   preset "Other" → Deploy.
+2. **Netlify** — drag this folder onto app.netlify.com/drop.
+3. **GitHub Pages** — Settings → Pages → deploy from branch root.
 
 ## Important
 
-A website cannot run an Android app. This is a **separate web version** built
-from scratch — it shares the idea and branding, not the phone app's code. The
-deep readings (voltage, current, temperature, calibration, cycle count) only
-exist in the Android app, because browsers don't expose them.
+A website cannot run the Android app, and cannot read the deep battery sensors.
+This is a visual web rebuild that shares the app's design, not its native
+capabilities.
