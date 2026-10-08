@@ -1,69 +1,121 @@
-# PowerVitals — web preview
+# PowerVitals — web view (3D)
 
-A free, licence-free **web version** of the PowerVitals screen. It mirrors the
-Android app's layout (dark "diagnostic unit" theme, orange accents, monospace)
-so it can be loaded inside a WebView app, with ad slots ready to fill.
+A free, licence-free **web version** of the PowerVitals screen, with a real
+**3D battery view** and a **JavaScript bridge** so the Android app can feed it
+live data. On a plain browser it falls back to what browsers allow.
 
 ## Files
 
-- `index.html` — the whole site (HTML + CSS + JS in one file). Self-contained,
-  mobile-first, works offline.
+- `index.html` — the whole site (HTML + CSS + JS + a canvas 3D renderer). One
+  file, no dependencies, works offline.
 - `README.md` — this file.
 
-## What it shows
+## The 3D battery view
 
-The page copies the app's sections one-for-one:
+A canvas renderer draws a real 3D cuboid (projection + painter's-algorithm
+depth sorting): a glass battery with a coloured liquid fill that tracks charge
+level, and a terminal nub on top. It **auto-rotates** and you can **drag to
+rotate** it. Colour turns amber under 35% and red under 15%.
 
-Battery Health · Calibration · Health Snapshot · Charging Dashboard ·
-Power Flow Analysis · Live Monitor · Power Consumption · Battery Optimizer ·
-Advanced Data · Raw Sysfs Data
+No libraries — pure canvas, so it works inside an offline WebView.
 
-**Live in the browser:** battery level, charging state, time-to-full, and an
-estimated charge rate (%/hr).
+## How the functions go live (JS bridge)
 
-**Shown as placeholders (—):** voltage, current, temperature, capacity,
-calibration, cycle count, sysfs. Browsers cannot read these — they are Android
-APIs only. That is a platform limit, not a bug.
+A browser alone **cannot** read voltage, current, temperature, cycle count or
+sysfs, and cannot toggle Wi-Fi/Bluetooth. Those only work inside the app, where
+Android hands the data to the page through a bridge.
+
+The page looks for `window.PowerVitalsBridge` (or `window.Android`) and calls:
+
+### `getSnapshot()` → JSON string (polled every 1s)
+
+```json
+{
+  "level": 62,
+  "charging": true,
+  "voltageV": 4.12,
+  "currentA": 0.85,
+  "tempC": 31.4,
+  "healthPct": 94,
+  "healthRating": "Excellent",
+  "designCapacityUah": 4500000,
+  "actualCapacityUah": 4230000,
+  "cycleCount": 210,
+  "technology": "Li-ion",
+  "chargeRate": 12.5,
+  "timeToFull": 5400,
+  "chargeAdded": "1.2 Ah | 4.6 Wh | 1200 mAh",
+  "rawChargerW": 8.4,
+  "intakeW": 6.1,
+  "systemOverheadW": 2.3,
+  "efficiencyPct": 72.6,
+  "wifi": "ON",
+  "bluetooth": "OFF",
+  "sync": "ON",
+  "chargingSource": "USB",
+  "plugType": "AC",
+  "chargeCounterUah": 2100000,
+  "energyCounterUwh": 8800000,
+  "sysfs": "voltage_now=4120000 ..."
+}
+```
+
+Any field you omit is simply left showing `—`.
+
+### Action methods (each returns a short status string)
+
+`startCalibration()`, `clearCalibration()`, `toggleWifi()`,
+`toggleBluetooth()`, `toggleSync()`, `openLocation()`, `openDisplay()`,
+`optimizeAll()`
+
+Buttons call these automatically when the bridge exists; otherwise they're
+disabled.
+
+## Wiring it in the Android (WebView) app
+
+```java
+WebSettings s = webView.getSettings();
+s.setJavaScriptEnabled(true);          // REQUIRED for the 3D view + live data
+
+webView.addJavascriptInterface(new Object() {
+  @JavascriptInterface public String getSnapshot() { return buildJson(); }   // return the JSON above
+  @JavascriptInterface public String toggleWifi() { /* toggle, then */ return "WiFi: ON"; }
+  @JavascriptInterface public String toggleBluetooth() { return "Bluetooth: ON"; }
+  @JavascriptInterface public String toggleSync() { return "Auto-Sync: ON"; }
+  @JavascriptInterface public String startCalibration() { return "Calibration started"; }
+  @JavascriptInterface public String clearCalibration() { return "Data cleared"; }
+  @JavascriptInterface public String openLocation() { return ""; }
+  @JavascriptInterface public String openDisplay() { return ""; }
+  @JavascriptInterface public String optimizeAll() { return "Optimised"; }
+}, "PowerVitalsBridge");
+
+// bundle the page for offline use:
+webView.loadUrl("file:///android_asset/index.html");
+```
+
+Build `buildJson()` on the Android side from the same APIs the original app
+used (BatteryManager, `/sys/battery`, etc.). `@JavascriptInterface` needs API 17+.
 
 ## Get-app button
 
-The sticky bar at the bottom has a **Get App** button pointing at
-`PowerVitals.apk`. Change the `href` on the `<a id="getApp" ...>` element to
-whatever download link you want (your hosted APK, a Play Store URL, etc.).
+The sticky bar's **Get App** button points at `PowerVitals.apk`. Change the
+`href` on `<a id="getApp" ...>` to your download link.
 
-## Add your ads
+## Ads
 
-Find the two `<div class="ad" ...>` blocks (`#ad-1` and `#ad-2`). Delete the
-placeholder text and paste your ad network's snippet where indicated.
+Two slots: `<div class="ad" id="ad-1">` and `#ad-2`. Paste your ad code inside.
+Note: many ad networks (AdSense included) restrict ads inside app WebViews.
 
-Note: many ad networks (including Google AdSense) restrict ads inside app
-WebViews. Check your network's policy before relying on in-app web ads.
+## Deploy
 
-## Using it inside the new APK (WebView)
+Already live on GitHub Pages:
+**https://tang-software.github.io/PowerVitals/**
 
-If the new APK is a WebView wrapper, point it at this page:
-
-```java
-webView.getSettings().setJavaScriptEnabled(true);   // needed for the live battery JS
-webView.loadUrl("file:///android_asset/index.html"); // if bundled in the APK assets
-// or loadUrl("https://your-site.vercel.app") if hosted
-```
-
-Bundling `index.html` into the APK's `assets/` folder makes the app work fully
-offline. The browser Battery API only returns real values on Chrome-based
-WebViews.
-
-## Deploy — Vercel (or Netlify / GitHub Pages)
-
-Plain static HTML, no build step:
-
-1. **Vercel** — vercel.com → Add New → Project → import this repo → Framework
-   preset "Other" → Deploy.
-2. **Netlify** — drag this folder onto app.netlify.com/drop.
-3. **GitHub Pages** — Settings → Pages → deploy from branch root.
+Plain static HTML, no build step. For any other host: publish directory `.`,
+build command empty, framework preset "Other".
 
 ## Important
 
-A website cannot run the Android app, and cannot read the deep battery sensors.
-This is a visual web rebuild that shares the app's design, not its native
-capabilities.
+A website cannot run the Android app or read the deep sensors. Everything past
+level/charging/timing comes from the Android bridge — so those functions only
+light up inside your APK.
